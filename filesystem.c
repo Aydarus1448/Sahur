@@ -19,8 +19,8 @@ FILE* open_fs_file(char* path) {
 }
 
 void view_file(FILE* fs, char* filename) {
-    char line[100]; // Буфер для чтения строк
-    int found = 0;  // Флаг "нашли ли файл"
+    char line[100];
+    int found = 0;
     
 
     rewind(fs);
