@@ -1,91 +1,92 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-FILE* open_fs_file(char* path) {
-    FILE* file = fopen(path, "r+");
-    
-    if (file == NULL) {
-        file = fopen(path, "w+");
-        printf("Создали новый файл %s\n", path);
-    } else {
-        printf("Открыли существующий файл %s\n", path);
+FILE* open_fs(const char* filename) {
+    FILE* fs = fopen(filename, "a+"); // Открываем для чтения и записи
+    if (!fs) {
+        perror("Failed to open filesystem");
+        return NULL;
     }
-    
-    if (file == NULL) {
-        printf("Ошибка! Не могу открыть файл!\n");
-    }
-    
-    return file;
+    return fs;
 }
 
-void view_file(FILE* fs, char* filename) {
-    char line[100];
+char* view_file(FILE* fs, const char* filename) {
+    fseek(fs, 0, SEEK_SET);
+    char line[256];
     int found = 0;
-    
-
-    rewind(fs);
+    char* content = NULL;
+    size_t content_size = 0;
     
     while (fgets(line, sizeof(line), fs)) {
-
-        line[strlen(line)-1] = '\0';
-      
-        if (strcmp(line, filename) == 0) {
-            found = 1;
-            printf("Содержимое файла %s:\n", filename);
-            continue;
-        }
+        line[strcspn(line, "\n")] = 0; // Удаляем символ новой строки
         
-
-        if (line[0] == '/') {
-            found = 0;
-        }
-        
-        if (found) {
-            printf("%s\n", line);
+        if (!found) {
+            if (strcmp(line, filename) == 0) {
+                found = 1;
+            }
+        } else {
+            if (line[0] == '/') {
+                break; // Конец файла
+            }
+            
+            size_t line_len = strlen(line);
+            char* temp = realloc(content, content_size + line_len + 2);
+            if (!temp) {
+                free(content);
+                return NULL;
+            }
+            content = temp;
+            strcpy(content + content_size, line);
+            content_size += line_len;
+            strcpy(content + content_size, "\n");
+            content_size += 1;
         }
     }
     
-    if (!found) {
-        printf("Файл %s не найден!\n", filename);
-    }
+    return content;
 }
 
-void delete_file(FILE* fs, char* filename) {
-    char line[100];
-    int copying = 1;
-    FILE* temp;
-    
-    temp = fopen("temp.fs", "w");
-    if (temp == NULL) {
-        printf("Ошибка создания временного файла!\n");
-        return;
-    }
-    
-    rewind(fs);
+int delete_file(FILE* fs, const char* filename) {
+    fseek(fs, 0, SEEK_SET);
+    char** lines = NULL;
+    int line_count = 0;
+    int in_target_file = 0;
+    char line[256];
     
     while (fgets(line, sizeof(line), fs)) {
-        line[strlen(line)-1] = '\0';
+        line[strcspn(line, "\n")] = 0;
         
-
-        if (strcmp(line, filename) == 0) {
-            copying = 0; 
-            continue;
+        if (!in_target_file) {
+            if (strcmp(line, filename) == 0) {
+                in_target_file = 1;
+                continue;
+            }
+        } else {
+            if (line[0] == '/') {
+                in_target_file = 0;
+            } else {
+                continue;
+            }
         }
         
-        if (line[0] == '/') {
-            copying = 1; 
+        char** temp = realloc(lines, (line_count + 1) * sizeof(char*));
+        if (!temp) {
+            for (int i = 0; i < line_count; i++) free(lines[i]);
+            free(lines);
+            return 0;
         }
-        
-        if (copying) {
-            fprintf(temp, "%s\n", line);
-        }
+        lines = temp;
+        lines[line_count] = strdup(line);
+        line_count++;
     }
     
-    fclose(temp);
-    fclose(fs);
+    freopen(NULL, "w", fs);
+    for (int i = 0; i < line_count; i++) {
+        fprintf(fs, "%s\n", lines[i]);
+        free(lines[i]);
+    }
+    free(lines);
     
-    remove("data.fs");
-    rename("temp.fs", "data.fs");
-    
-    printf("Файл %s удалён!\n", filename);
+    return 1;
 }
