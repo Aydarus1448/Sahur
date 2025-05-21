@@ -1,17 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "filesystem.h"
 
-FILE* open_fs(const char* filename) {
-    FILE* fs = fopen(filename, "a+"); // Открываем для чтения и записи
+FILE* sahur_open(const char* filename) {
+    FILE* fs = fopen(filename, "a+");
     if (!fs) {
-        perror("Failed to open filesystem");
+        perror("Sahur: Failed to open filesystem");
         return NULL;
     }
     return fs;
 }
 
-char* view_file(FILE* fs, const char* filename) {
+char* sahur_view(FILE* fs, const char* filename) {
     fseek(fs, 0, SEEK_SET);
     char line[256];
     int found = 0;
@@ -19,7 +20,7 @@ char* view_file(FILE* fs, const char* filename) {
     size_t content_size = 0;
     
     while (fgets(line, sizeof(line), fs)) {
-        line[strcspn(line, "\n")] = 0; // Удаляем символ новой строки
+        line[strcspn(line, "\n")] = 0;
         
         if (!found) {
             if (strcmp(line, filename) == 0) {
@@ -27,7 +28,7 @@ char* view_file(FILE* fs, const char* filename) {
             }
         } else {
             if (line[0] == '/') {
-                break; // Конец файла
+                break;
             }
             
             size_t line_len = strlen(line);
@@ -47,14 +48,14 @@ char* view_file(FILE* fs, const char* filename) {
     return content;
 }
 
-int delete_file(FILE* fs, const char* filename) {
+int sahur_delete(FILE* fs, const char* filename) {
     fseek(fs, 0, SEEK_SET);
     char** lines = NULL;
     int line_count = 0;
     int in_target_file = 0;
     char line[256];
     
-    while (fgets(line, sizeof(line), fs)) {
+    while (fgets(line, sizeof(line), fs) {
         line[strcspn(line, "\n")] = 0;
         
         if (!in_target_file) {
@@ -87,6 +88,38 @@ int delete_file(FILE* fs, const char* filename) {
         free(lines[i]);
     }
     free(lines);
+    
+    return 1;
+}
+
+int sahur_create(FILE* fs, const char* filename, const char* content) {
+    fseek(fs, 0, SEEK_END);
+    
+    fseek(fs, 0, SEEK_SET);
+    char line[256];
+    while (fgets(line, sizeof(line), fs) {
+        line[strcspn(line, "\n")] = 0;
+        if (strcmp(line, filename) == 0) {
+            return 0;
+        }
+    }
+    
+    fprintf(fs, "%s\n", filename);
+    fprintf(fs, "%s\n", content);
+    fprintf(fs, "/\n");
+    
+    return 1;
+}
+
+int sahur_modify(FILE* fs, const char* filename, const char* new_content) {
+    if (!sahur_delete(fs, filename)) {
+        return 0;
+    }
+    
+    fseek(fs, 0, SEEK_END);
+    fprintf(fs, "%s\n", filename);
+    fprintf(fs, "%s\n", new_content);
+    fprintf(fs, "/\n");
     
     return 1;
 }
